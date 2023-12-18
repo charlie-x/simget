@@ -1,0 +1,28 @@
+{
+    "name": "my-project",
+    "version": "1.0.0",
+    "dependencies": [
+        {
+            "name": "imgui",
+            "default-features": true,
+            "platform": "( liunx | windows)",
+            "features": [
+              "glfw-binding",
+              "opengl3-binding"
+            ]
+          },
+          {
+            "name": "imgui",
+            "default-features": true,
+            "platform": "( arm64 | osx)",
+            "features": [
+                "glfw-binding",
+                "osx-binding",
+                "metal-binding",
+                "opengl3-binding"
+            ]
+          },
+        "glfw3",
+        "argparse"
+    ]
+}
