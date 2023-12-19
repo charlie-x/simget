@@ -16,6 +16,7 @@ extern "C" {
     #include "simavr/sim/sim_avr.h"
     #include "simavr/sim/avr_uart.h"
     #include "simavr/sim/sim_gdb.h"
+    #include "simavr/sim/sim_core.h"
     #include "simavr/sim/sim_vcd_file.h"
     #include "simavr/sim/sim_hex.h"
     #include "simavr/sim/sim_elf.h"
@@ -23,6 +24,7 @@ extern "C" {
 
 
 static avr_t * avr = NULL;
+uint32_t loadBase = AVR_SEGMENT_OFFSET_FLASH;
 
 void sig_int(int sign) {
     std::cout << "Signal caught, simavr terminating" << std::endl;
@@ -37,7 +39,82 @@ void sig_int(int sign) {
 void list_cores() {
 
 }
-void ShowAvrDetails(avr_t* avr) {
+
+void ShowAvrDetailsFull(const avr_t* avr) 
+{
+    if (!avr) return;
+
+    // Start a new ImGui window
+    if (ImGui::Begin("AVR Details Full")) { // Only proceed if the window is open
+    ImGui::Text("IO End: %u", avr->ioend);
+    ImGui::Text("RAM End: %u", avr->ramend);
+    ImGui::Text("Flash End: %u", avr->flashend);
+    ImGui::Text("E2 End: %u", avr->e2end);
+    ImGui::Text("Vector Size: %u", avr->vector_size);
+
+    ImGui::Text("Fuse:");
+    for (int i = 0; i < 6; ++i)
+        ImGui::Text("\t[%d]: 0x%X", i, avr->fuse[i]);
+
+    ImGui::Text("Lockbits: 0x%X", avr->lockbits);
+
+    ImGui::Text("Signature:");
+    for (int i = 0; i < 3; ++i)
+        ImGui::Text("\t[%d]: 0x%X", i, avr->signature[i]);
+
+    ImGui::Text("Serial:");
+    for (int i = 0; i < 9; ++i)
+        ImGui::Text("\t[%d]: 0x%X", i, avr->serial[i]);
+
+    ImGui::Text("RAMPZ: %u", avr->rampz);
+    ImGui::Text("EIND: %u", avr->eind);
+    ImGui::Text("Address Size: %u", avr->address_size);
+
+    ImGui::Text("Reset Flags:");
+    ImGui::Text("\tPORF: %u", avr->reset_flags.porf.bit);
+    ImGui::Text("\tEXTRF: %u", avr->reset_flags.extrf.bit);
+    ImGui::Text("\tBORF: %u", avr->reset_flags.borf.bit);
+    ImGui::Text("\tWDRF: %u", avr->reset_flags.wdrf.bit);
+
+    ImGui::Text("Code End: %u", avr->codeend);
+    ImGui::Text("Run Cycle Count: %llu", avr->run_cycle_count);
+    ImGui::Text("Run Cycle Limit: %llu", avr->run_cycle_limit);
+    ImGui::Text("Sleep Usec: %u", avr->sleep_usec);
+    ImGui::Text("Time Base: %llu", avr->time_base);
+
+    // Custom init/deinit functions and data are not displayed as they are function pointers and context data
+
+    // Skipping run and sleep function pointers for the same reason
+
+    // Skipping irq_pool, sreg, interrupt_state, pc, reset_pc, io, io_shared_io, flash, data, io_port, commands, cycle_timers, interrupts, trace, log, trace_data, vcd, gdb, gdb_port, io_console_buffer, data_names as these are complex types or pointers
+
+    ImGui::End();
+
+    }
+}
+void DumpAvrRegisters(avr_t* avr) {
+    if (!avr) return;
+
+    ImGui::Begin("AVR Register Dump");
+
+    for (int i = 0; i < 32; i++) {
+        ImGui::Text("%s=%02x", avr_regname(avr, i), avr->data[i]);
+        if ((i % 8) != 7) ImGui::SameLine();
+    }
+
+    uint16_t y = avr->data[R_YL] | (avr->data[R_YH] << 8);
+    for (int i = 0; i < 20; i++) {
+        ImGui::Text("Y+%02d=%02x", i, avr->data[y + i]);
+        if (i % 10 != 9) ImGui::SameLine();
+    }
+
+    ImGui::End();
+}
+
+void ShowAvrDetails(avr_t* avr) 
+{
+    static bool run = false;
+
     if (!avr) return;
 
     // Start a new ImGui window
@@ -46,20 +123,43 @@ void ShowAvrDetails(avr_t* avr) {
         ImGui::Text("MCU: %s", avr->mmcu);
         ImGui::Text("Frequency: %lu Hz", avr->frequency);
         ImGui::Text("Cycle Counter: %lu", avr->cycle);
+
         ImGui::Text("VCC: %f V", avr->vcc);
         ImGui::Text("AVCC: %f V", avr->avcc);
         ImGui::Text("AREF: %f V", avr->aref);
-        // Add more fields as needed
-        
-        // Simavr run cycle
-        int state = avr_run(avr); 
-        ImGui::Text("STATE": %d ", state);
-        if (state == cpu_Done || state == cpu_Crashed){
-             ImGui::Text("DONE/CRASHED");
-        };
-            
 
-        ImGui::End(); // End of AVR Details Window
+        ImGui::Text("pc      : %d", avr->pc);
+        ImGui::Text("reset pc: %d", avr->reset_pc);
+        
+        {
+            const char * _sreg_bit_name = "cznvshti";
+            char buffer[32];
+           	for (int _sbi = 0; _sbi < 8; _sbi++) {
+                sprintf(buffer,"%c", avr->sreg[_sbi] ? toupper(_sreg_bit_name[_sbi]) : '.');
+            }
+            ImGui::Text("sreg: %s",buffer);
+        }
+        static int state ;
+
+        // Simavr run cycle
+        if( run ) {
+            state = avr_run(avr);
+        }
+
+        ImGui::Checkbox("run",&run);
+
+        if(ImGui::Button("step")){
+            state = avr_run(avr);
+        }
+
+        if(ImGui::Button("reset")){
+            avr_reset(avr);
+        }
+
+        ImGui::Text("STATE: %d ", state);
+        if (state == cpu_Done || state == cpu_Crashed){
+                ImGui::Text("DONE/CRASHED");
+        };        ImGui::End(); // End of AVR Details Window
     }
 }
 
@@ -158,6 +258,9 @@ int main(int argc, char** argv) {
 
     printf("OpenGL version supported by this platform (%s): \n", glGetString(GL_VERSION));
 
+	sim_setup_firmware(firmware_file.c_str(), loadBase, &f, argv[0]);
+
+
     // Initialize simavr
     avr = avr_make_mcu_by_name(mcu.c_str());
     if (!avr) {
@@ -174,7 +277,6 @@ int main(int argc, char** argv) {
 		f.frequency = frequency;
 
     // Load firmware (ELF or hex)
-
     avr_load_firmware(avr, &f);
     
     // Setup GDB if specified
@@ -199,11 +301,9 @@ int main(int argc, char** argv) {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // ImGui rendering code goes here
-//        ImGui::ShowDemoWindow();
-
         ShowAvrDetails(avr);
-
+        ShowAvrDetailsFull(avr);
+        DumpAvrRegisters(avr);
 
        // Rendering
         ImGui::Render();
