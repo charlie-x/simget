@@ -1,4 +1,4 @@
 rm ./build/simget
 cmake --build build -j 5
-./build/simget --mcu attiny4313 -f 1000000 --firmware ../simavr/elliePOV.hex
+./build/simget --mcu attiny4313 -f 1000000 --firmware ./elliePOV.hex
 

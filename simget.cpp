@@ -6,6 +6,9 @@
 #include "imgui_impl_opengl3.h"
 #include <GLFW/glfw3.h>
 
+// comes from the imgui_club repo
+#include "imgui_memory_editor.h"
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -59,8 +62,7 @@ void ShowAvrDetailsFull(const avr_t* avr)
     ImGui::Text("Lockbits: 0x%X", avr->lockbits);
 
     ImGui::Text("Signature:");
-    for (int i = 0; i < 3; ++i)
-        ImGui::Text("\t[%d]: 0x%X", i, avr->signature[i]);
+    ImGui::Text("\t0x%X%X%X", avr->signature[0], avr->signature[1],avr->signature[2]);
 
     ImGui::Text("Serial:");
     for (int i = 0; i < 9; ++i)
@@ -77,10 +79,10 @@ void ShowAvrDetailsFull(const avr_t* avr)
     ImGui::Text("\tWDRF: %u", avr->reset_flags.wdrf.bit);
 
     ImGui::Text("Code End: %u", avr->codeend);
-    ImGui::Text("Run Cycle Count: %llu", avr->run_cycle_count);
-    ImGui::Text("Run Cycle Limit: %llu", avr->run_cycle_limit);
+    ImGui::Text("Run Cycle Count: %lu", avr->run_cycle_count);
+    ImGui::Text("Run Cycle Limit: %lu", avr->run_cycle_limit);
     ImGui::Text("Sleep Usec: %u", avr->sleep_usec);
-    ImGui::Text("Time Base: %llu", avr->time_base);
+    ImGui::Text("Time Base: %lu", avr->time_base);
 
     // Custom init/deinit functions and data are not displayed as they are function pointers and context data
 
@@ -92,6 +94,57 @@ void ShowAvrDetailsFull(const avr_t* avr)
 
     }
 }
+
+void HexEditor( avr_t * avr, bool run){
+
+   static MemoryEditor mem_edit_1;
+   if(!avr) return;
+
+   static size_t  start ;
+
+    // only chase if not pc changed
+    {
+
+        if ( start!= avr->pc ) {
+
+            size_t end  = avr->pc+2;
+            start = avr->pc;
+
+            mem_edit_1.GotoAddrAndHighlight( start,end);
+        }
+    }
+
+   mem_edit_1.DrawWindow("Memory Editor FLASH", avr->flash, avr->flashend);
+}
+
+void HexEditorRAM( avr_t * avr){
+
+   static MemoryEditor mem_edit_1;
+   mem_edit_1.DrawWindow("Memory Editor RAM", avr->data , avr->ramend);
+
+}
+
+const char* GetAvrStateName(int state) {
+    switch (state) {
+        case cpu_Limbo: return "Limbo";
+        case cpu_Stopped: return "Stopped";
+        case cpu_Running: return "Running";
+        case cpu_Sleeping: return "Sleeping";
+        case cpu_Step: return "Step";
+        case cpu_StepDone: return "Step Done";
+        case cpu_Done: return "Done";
+        case cpu_Crashed: return "Crashed";
+        default: return "Unknown";
+    }
+}
+
+void ShowAvrState(const int state) 
+{
+    if (!avr) return;
+    
+    ImGui::Text("State: %s", GetAvrStateName( state ));
+}
+
 void DumpAvrRegisters(avr_t* avr) {
     if (!avr) return;
 
@@ -111,25 +164,25 @@ void DumpAvrRegisters(avr_t* avr) {
     ImGui::End();
 }
 
-void ShowAvrDetails(avr_t* avr) 
+bool  ShowAvrDetails(avr_t* avr) 
 {
     static bool run = false;
 
-    if (!avr) return;
+    if (!avr) return false;
 
     // Start a new ImGui window
     if (ImGui::Begin("AVR Details Window")) { // Only proceed if the window is open
 
         ImGui::Text("MCU: %s", avr->mmcu);
-        ImGui::Text("Frequency: %lu Hz", avr->frequency);
+        ImGui::Text("Frequency: %d Hz", avr->frequency);
         ImGui::Text("Cycle Counter: %lu", avr->cycle);
 
-        ImGui::Text("VCC: %f V", avr->vcc);
-        ImGui::Text("AVCC: %f V", avr->avcc);
-        ImGui::Text("AREF: %f V", avr->aref);
+        ImGui::Text("VCC: %d V", avr->vcc);
+        ImGui::Text("AVCC: %d V", avr->avcc);
+        ImGui::Text("AREF: %d V", avr->aref);
 
-        ImGui::Text("pc      : %d", avr->pc);
-        ImGui::Text("reset pc: %d", avr->reset_pc);
+        ImGui::Text("pc:       0x%x", avr->pc);
+        ImGui::Text("reset pc: 0x%x", avr->reset_pc);
         
         {
             const char * _sreg_bit_name = "cznvshti";
@@ -156,11 +209,14 @@ void ShowAvrDetails(avr_t* avr)
             avr_reset(avr);
         }
 
-        ImGui::Text("STATE: %d ", state);
+        ShowAvrState(state);
+
         if (state == cpu_Done || state == cpu_Crashed){
                 ImGui::Text("DONE/CRASHED");
         };        ImGui::End(); // End of AVR Details Window
     }
+
+    return run;
 }
 
 
@@ -238,7 +294,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    GLFWwindow* window = glfwCreateWindow(640, 480, "SimAVR with ImGui", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(1280, 1075, "SimAVR", NULL, NULL);
     if (!window) {
         std::cerr << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -294,6 +350,7 @@ int main(int argc, char** argv) {
 
     // Main loop
     while (!glfwWindowShouldClose(window)) {
+
         glfwPollEvents();
 
         // Start ImGui frame
@@ -301,9 +358,12 @@ int main(int argc, char** argv) {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        ShowAvrDetails(avr);
+        bool run =  ShowAvrDetails(avr);
         ShowAvrDetailsFull(avr);
         DumpAvrRegisters(avr);
+
+        HexEditor(avr,run);
+        HexEditorRAM(avr);
 
        // Rendering
         ImGui::Render();

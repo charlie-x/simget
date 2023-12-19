@@ -5,7 +5,7 @@
         {
             "name": "imgui",
             "default-features": true,
-            "platform": "( liunx | windows)",
+            "platform": "( linux | windows)",
             "features": [
               "glfw-binding",
               "opengl3-binding"
