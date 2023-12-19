@@ -8,9 +8,10 @@ set(CMAKE_CXX_STANDARD 17)
 find_package(imgui CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(argparse CONFIG REQUIRED)
-find_package(glfw3 CONFIG REQUIRED)
-link_directories(/Users/charlie/code/simavr/simavr/obj-arm64-apple-darwin23.1.0)
+find_package(OpenGL REQUIRED)
 
+link_directories(/Users/charlie/code/simavr/simavr/obj-arm64-apple-darwin23.1.0)
+link_directories(/System/Volumes/Data/opt/homebrew/lib/)
 # Add your source files here
 add_executable(simget simget.cpp)
 
@@ -23,3 +24,4 @@ include_directories(~/code/simavr/simavr/sim)
 target_link_libraries(simget PRIVATE imgui::imgui glfw)
 target_link_libraries(simget PRIVATE libsimavr.a) 
 target_link_libraries(simget PRIVATE libelf.a) 
+target_link_libraries(simget PRIVATE OpenGL::GL)

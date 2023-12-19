@@ -19,8 +19,7 @@ extern "C" {
     #include "simavr/sim/sim_vcd_file.h"
     #include "simavr/sim/sim_hex.h"
     #include "simavr/sim/sim_elf.h"
-
-}
+    }
 
 
 static avr_t * avr = NULL;
@@ -32,10 +31,40 @@ void sig_int(int sign) {
     exit(0);
 }
 
+
+
 // Function to list supported AVR cores
 void list_cores() {
-    // Implementation of list_cores (similar to the C code)
+
 }
+void ShowAvrDetails(avr_t* avr) {
+    if (!avr) return;
+
+    // Start a new ImGui window
+    if (ImGui::Begin("AVR Details Window")) { // Only proceed if the window is open
+
+        ImGui::Text("MCU: %s", avr->mmcu);
+        ImGui::Text("Frequency: %lu Hz", avr->frequency);
+        ImGui::Text("Cycle Counter: %lu", avr->cycle);
+        ImGui::Text("VCC: %f V", avr->vcc);
+        ImGui::Text("AVCC: %f V", avr->avcc);
+        ImGui::Text("AREF: %f V", avr->aref);
+        // Add more fields as needed
+        
+        // Simavr run cycle
+        int state = avr_run(avr); 
+        ImGui::Text("STATE": %d ", state);
+        if (state == cpu_Done || state == cpu_Crashed){
+             ImGui::Text("DONE/CRASHED");
+        };
+            
+
+        ImGui::End(); // End of AVR Details Window
+    }
+}
+
+
+	elf_firmware_t f = {{0}};
 
 int main(int argc, char** argv) {
     argparse::ArgumentParser program("SimAVR with ImGui");
@@ -64,9 +93,11 @@ int main(int argc, char** argv) {
            .help("Path to the firmware file for simulation (ELF or hex)");
 
     program.add_argument("--input", "-i")
+           .default_value("")
            .help("A VCD file to use as input signals");
 
     program.add_argument("--output", "-o")
+           .default_value("")
            .help("A VCD file to save the traced signals");
 
     program.add_argument("--trace", "-t")
@@ -75,6 +106,7 @@ int main(int argc, char** argv) {
            .help("Run full scale decoder trace");
 
     program.add_argument("--add-trace", "-at")
+           .default_value("")
            .help("Add signal to be included in VCD output (format: name=kind@addr/mask)");
 
     try {
@@ -122,7 +154,9 @@ int main(int argc, char** argv) {
 
     // Setup ImGui + GLFW binding
     ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init("#version 130");
+    ImGui_ImplOpenGL3_Init("#version 120");
+
+    printf("OpenGL version supported by this platform (%s): \n", glGetString(GL_VERSION));
 
     // Initialize simavr
     avr = avr_make_mcu_by_name(mcu.c_str());
@@ -134,9 +168,14 @@ int main(int argc, char** argv) {
     avr_init(avr);
     avr->frequency = frequency;
 
+	if (mcu.length() )
+		strcpy(f.mmcu, mcu.c_str());
+	if (frequency)
+		f.frequency = frequency;
+
     // Load firmware (ELF or hex)
-    elf_firmware_t firmware;
-    elf_read_firmware(firmware_file.c_str(), &firmware);
+
+    avr_load_firmware(avr, &f);
     
     // Setup GDB if specified
     if (gdb_port) {
@@ -161,9 +200,12 @@ int main(int argc, char** argv) {
         ImGui::NewFrame();
 
         // ImGui rendering code goes here
-        ImGui::ShowDemoWindow();
+//        ImGui::ShowDemoWindow();
 
-        // Rendering
+        ShowAvrDetails(avr);
+
+
+       // Rendering
         ImGui::Render();
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
@@ -172,10 +214,6 @@ int main(int argc, char** argv) {
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-        // Simavr run cycle
-        int state = avr_run(avr);
-        if (state == cpu_Done || state == cpu_Crashed)
-            break;
 
         glfwSwapBuffers(window);
     }
