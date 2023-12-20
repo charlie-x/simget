@@ -13,15 +13,15 @@ endif()
 if(APPLE)
 message("APPLE Build")
 set(CMAKE_C_FLAGS "-funsigned-char")
-set(CMAKE_C_FLAGS_RELEASE "-mtune=generic -O2 -ftree-loop-vectorize -Wall -pedantic -mstackrealign -flto -fomit-frame-pointer -DNDEBUG -fcf-protection-Wno-unknown-pragmas -fexceptions -fstack-clash-protection -Wl,-z,relro -Wl,-z,defs -Wl,-z,now")
-set(CMAKE_CXX_FLAGS_RELEASE "-mtune=generic -O2 -ftree-loop-vectorize -Wall -pedantic -mstackrealign -flto -fomit-frame-pointer -DNDEBUG -fcf-protection -Wno-unknown-pragmas -fexceptions -fstack-clash-protection -Wl,-z,relro -Wl,-z,defs -Wl,-z,now")
+set(CMAKE_C_FLAGS_RELEASE "-mtune=generic -O2 -Wall -pedantic -mstackrealign -flto -fomit-frame-pointer -DNDEBUG -Wno-unknown-pragmas -fexceptions -fstack-clash-protection")
+set(CMAKE_CXX_FLAGS_RELEASE "-mtune=generic -O2 -Wall -pedantic -mstackrealign -flto -fomit-frame-pointer -DNDEBUG -Wno-unknown-pragmas -fexceptions -fstack-clash-protection")
 
 set(CMAKE_CXX_FLAGS "-funsigned-char")
 
 else()
 
 set(CMAKE_C_FLAGS "-funsigned-char -static-libgcc")
-set(CMAKE_C_FLAGS_RELEASE "-mtune=native -O2 -ftree-loop-vectorize -Wall -pedantic -mstackrealign -flto -fomit-frame-pointer -DNDEBUG -fcf-protection-Wno-unknown-pragmas -fexceptions -fstack-clash-protection -fpie -Wl,-pie -Wl,-z,relro -Wl,-z,defs -Wl,-z,now")
+set(CMAKE_C_FLAGS_RELEASE "-mtune=native -O2 -ftree-loop-vectorize -Wall -pedantic -mstackrealign -flto -fomit-frame-pointer -DNDEBUG -fcf-protection -Wno-unknown-pragmas -fexceptions -fstack-clash-protection -fpie -Wl,-pie -Wl,-z,relro -Wl,-z,defs -Wl,-z,now")
 set(CMAKE_CXX_FLAGS_RELEASE "-mtune=native -O2 -ftree-loop-vectorize -Wall -pedantic -mstackrealign -flto -fomit-frame-pointer -DNDEBUG -fcf-protection -Wno-unknown-pragmas -fexceptions -fstack-clash-protection -fpie -Wl,-z,relro -Wl,-z,defs -Wl,-z,now")
 
 set(CMAKE_CXX_FLAGS "-funsigned-char -static-libgcc -static-libstdc++")
