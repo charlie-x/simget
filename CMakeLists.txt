@@ -44,8 +44,8 @@ find_package(OpenGL REQUIRED)
 # have to change this to match how simavr builds
 link_directories(simavr/simavr/build)
 
-#mac libelf homebrew.
-link_directories(System/Volumes/Data/opt/homebrew/lib/)
+#mac libelf homebrew. 
+link_directories(/System/Volumes/Data/opt/homebrew/lib/)
 
 # Add your source files here
 add_executable(simget simget.cpp)

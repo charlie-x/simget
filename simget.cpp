@@ -23,11 +23,14 @@ extern "C" {
     #include "simavr/sim/sim_vcd_file.h"
     #include "simavr/sim/sim_hex.h"
     #include "simavr/sim/sim_elf.h"
+    #include "simavr/sim/sim_mcu_structs.h"
     }
 
 
 static avr_t * avr = NULL;
 uint32_t loadBase = AVR_SEGMENT_OFFSET_FLASH;
+elf_firmware_t f = {{0}};
+
 
 void sig_int(int sign) {
     std::cout << "Signal caught, simavr terminating" << std::endl;
@@ -124,6 +127,162 @@ void HexEditorRAM( avr_t * avr){
 
 }
 
+
+void ModifyAvrIoRegister(avr_ioport_t*port) {
+
+    if (!port) return;
+    
+    char cname[2] = {0,0,};
+    cname[0]=port->name;
+
+/////////// PORTS
+{
+    // Display register name, address, and current value
+    ImGui::Text("PORT%s (0x%02X) - Value: 0x%02X",cname , 0x0 , avr->data[port->r_port]);
+
+    // Calculate spacing based on window width
+    float windowWidth = ImGui::GetWindowWidth();
+    float spacing = windowWidth / 9; // 8 bits + label
+
+    // Display the bit numbers
+    ImGui::SetCursorPosX( 28 + spacing); // Initial spacing for alignment
+    for (int i = 7; i >= 0; --i) {
+        ImGui::Text("%d", i);
+        if (i > 0) {
+            ImGui::SameLine();
+            ImGui::SetCursorPosX( 28 + ( spacing * (8 - i + 1 ))); 
+        }
+    }
+
+    // Display the checkboxes for each bit
+    ImGui::Text("Value");
+    ImGui::SameLine();
+    for (int i = 7; i >= 0; --i) {
+        ImGui::SetCursorPosX( (spacing * (8 - i + 0.5f))); // Adjust for checkbox size
+        bool bitSet = avr->data[port->r_port] & (1 << i);
+        std::string name ;
+        name = std::string("##") + cname+ std::to_string(i) ;
+
+        if (ImGui::Checkbox(name.c_str(), &bitSet)) {
+            // Toggle the bit if the checkbox is clicked
+            if (bitSet) {
+                avr->data[port->r_port] |= (1 << i);
+            } else {
+                avr->data[port->r_port] &= ~(1 << i);
+            }
+        }
+        if (i > 0) {
+            ImGui::SameLine();
+        }
+    }
+}
+/////////// PINS
+    {
+        // Display register name, address, and current value
+        ImGui::Text("PIN%s (0x%02X) - Value: 0x%02X",cname , 0x0 , avr->data[port->r_pin]);
+
+        // Calculate spacing based on window width
+        float windowWidth = ImGui::GetWindowWidth();
+        float spacing = windowWidth / 9; // 8 bits + label
+
+        // Display the bit numbers
+        ImGui::SetCursorPosX( 28 + spacing); // Initial spacing for alignment
+        for (int i = 7; i >= 0; --i) {
+            ImGui::Text("%d", i);
+            if (i > 0) {
+                ImGui::SameLine();
+                ImGui::SetCursorPosX( 28 + ( spacing * (8 - i + 1 ))); 
+            }
+        }
+
+        // Display the checkboxes for each bit
+        ImGui::Text("Value");
+        ImGui::SameLine();
+        for (int i = 7; i >= 0; --i) {
+            ImGui::SetCursorPosX( (spacing * (8 - i + 0.5f))); // Adjust for checkbox size
+            bool bitSet = avr->data[port->r_pin] & (1 << i);
+            std::string name ;
+            name = std::string("##") + cname+ std::to_string(i) ;
+
+            if (ImGui::Checkbox(name.c_str(), &bitSet)) {
+                // Toggle the bit if the checkbox is clicked
+                if (bitSet) {
+                     avr->data[port->r_pin] |= (1 << i);
+                } else {
+                     avr->data[port->r_pin] &= ~(1 << i);
+                }
+            }
+            if (i > 0) {
+                ImGui::SameLine();
+            }
+        }
+    }
+
+
+
+/////////// DDR
+    {
+        // Display register name, address, and current value
+        ImGui::Text("DDR%s (0x%02X) - Value: 0x%02X",cname , 0x0 ,  avr->data[port->r_ddr]);
+
+        // Calculate spacing based on window width
+        float windowWidth = ImGui::GetWindowWidth();
+        float spacing = windowWidth / 9; // 8 bits + label
+
+        // Display the bit numbers
+        ImGui::SetCursorPosX( 28 + spacing); // Initial spacing for alignment
+        for (int i = 7; i >= 0; --i) {
+            ImGui::Text("%d", i);
+            if (i > 0) {
+                ImGui::SameLine();
+                ImGui::SetCursorPosX( 28 + ( spacing * (8 - i + 1 ))); 
+            }
+        }
+
+        // Display the checkboxes for each bit
+        ImGui::Text("Value");
+        ImGui::SameLine();
+        for (int i = 7; i >= 0; --i) {
+            ImGui::SetCursorPosX( (spacing * (8 - i + 0.5f))); // Adjust for checkbox size
+            bool bitSet =  avr->data[port->r_ddr]& (1 << i);
+            std::string name ;
+            name = std::string("##") + cname+ std::to_string(i) ;
+
+            if (ImGui::Checkbox(name.c_str(), &bitSet)) {
+                // Toggle the bit if the checkbox is clicked
+                if (bitSet) {
+                     avr->data[port->r_ddr] |= (1 << i);
+                } else {
+                     avr->data[port->r_ddr] &= ~(1 << i);
+                }
+            }
+            if (i > 0) {
+                ImGui::SameLine();
+            }
+        }
+    }
+
+
+}
+
+
+void ModifyAvrIoRegisters(avr_t *avr) 
+{
+    if(!avr) return;
+    
+    // recast to mcu type
+    mcu_attiny4313_t *mcu = (mcu_attiny4313_t*)avr;
+
+    ImGui::Begin("AVR IO Register Control");
+
+    ModifyAvrIoRegister( &mcu->porta);
+    ModifyAvrIoRegister( &mcu->portb);
+    ModifyAvrIoRegister( &mcu->portd);
+
+    ImGui::End();
+
+}
+
 const char* GetAvrStateName(int state) {
     switch (state) {
         case cpu_Limbo: return "Limbo";
@@ -167,6 +326,7 @@ void DumpAvrRegisters(avr_t* avr) {
 bool  ShowAvrDetails(avr_t* avr) 
 {
     static bool run = false;
+    static bool animate = false;
 
     if (!avr) return false;
 
@@ -192,6 +352,7 @@ bool  ShowAvrDetails(avr_t* avr)
             }
             ImGui::Text("sreg: %s",buffer);
         }
+        
         static int state ;
 
         // Simavr run cycle
@@ -200,6 +361,16 @@ bool  ShowAvrDetails(avr_t* avr)
         }
 
         ImGui::Checkbox("run",&run);
+        ImGui::Checkbox("animate",&animate);
+
+        if(animate ) {
+            static uint16_t count = 0;
+            count ++;
+            if (count == 1000 ) {
+                run = 1- run;
+                count = 0;
+            }
+        }
 
         if(ImGui::Button("step")){
             state = avr_run(avr);
@@ -220,7 +391,6 @@ bool  ShowAvrDetails(avr_t* avr)
 }
 
 
-	elf_firmware_t f = {{0}};
 
 int main(int argc, char** argv) {
     argparse::ArgumentParser program("SimAVR with ImGui");
@@ -364,6 +534,8 @@ int main(int argc, char** argv) {
 
         HexEditor(avr,run);
         HexEditorRAM(avr);
+
+        ModifyAvrIoRegisters(avr);
 
        // Rendering
         ImGui::Render();
