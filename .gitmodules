@@ -1,3 +1,6 @@
 [submodule "simavr"]
 	path = simavr
 	url = git@github.com:charlie-x/simavr.git
+[submodule "avrdisas"]
+	path = avrdisas
+	url = git@github.com:charlie-x/avrdisas.git
