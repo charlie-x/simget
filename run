@@ -1,6 +1,11 @@
 rm ./build/simget
 cd simavr
 make
+cmake --build build -j 5
+cd ..
+cd avrdisas
+cmake --build build -j 5
+make
 cd ..
 cmake --build build -j 5
 rem ./build/simget --mcu attiny4313 -f 1000000 --firmware ./elliePOV.hex

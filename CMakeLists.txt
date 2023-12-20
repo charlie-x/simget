@@ -43,17 +43,21 @@ find_package(OpenGL REQUIRED)
 
 # have to change this to match how simavr builds
 link_directories(simavr/simavr/build)
+link_directories(avrdisas/build)
 
 #mac libelf homebrew. 
 link_directories(/System/Volumes/Data/opt/homebrew/lib/)
 
 # Add your source files here
-add_executable(simget simget.cpp)
+add_executable(simget simget.cpp simgetavr.cpp)
 
 # Include directories for simavr
 include_directories(simavr/)
 include_directories(simavr/simavr/cores)
 include_directories(simavr/simavr/sim)
+
+#  Include directories for avrdisas
+include_directories(avrdisas/includes)
 
 # Link libraries
 target_link_libraries(simget PRIVATE imgui::imgui glfw)
@@ -61,3 +65,4 @@ target_link_libraries(simget PRIVATE OpenGL::GL)
 
 target_link_libraries(simget PRIVATE libsimavr.a) 
 target_link_libraries(simget PRIVATE libelf.a) 
+target_link_libraries(simget PRIVATE libavrdisas_static.a) 

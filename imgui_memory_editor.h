@@ -87,7 +87,8 @@ struct MemoryEditor
     int             OptMidColsCount;                            // = 8      // set to 0 to disable extra spacing between every mid-cols.
     int             OptAddrDigitsCount;                         // = 0      // number of addr digits to display (default calculated based on maximum displayed addr).
     float           OptFooterExtraHeight;                       // = 0      // space to reserve at the bottom of the widget to add custom widgets
-    ImU32           HighlightColor;                             //          // background color of highlighted bytes.
+    ImU32           HighlightColor;                             //          // background color of highlighted bytes for PC trace
+    ImU32           HighlightColorPC;                           //          // background color of highlighted bytes.
     ImU8            (*ReadFn)(const ImU8* data, size_t off);    // = 0      // optional handler to read bytes.
     void            (*WriteFn)(ImU8* data, size_t off, ImU8 d); // = 0      // optional handler to write bytes.
     bool            (*HighlightFn)(const ImU8* data, size_t off);//= 0      // optional handler to return Highlight property (to support non-contiguous highlighting).
@@ -100,6 +101,7 @@ struct MemoryEditor
     char            DataInputBuf[32];
     char            AddrInputBuf[32];
     size_t          GotoAddr;
+    size_t          HighlightPCMin, HighlightPCMax;
     size_t          HighlightMin, HighlightMax;
     int             PreviewEndianess;
     ImGuiDataType   PreviewDataType;
@@ -119,6 +121,7 @@ struct MemoryEditor
         OptMidColsCount = 8;
         OptAddrDigitsCount = 0;
         OptFooterExtraHeight = 0.0f;
+        HighlightColorPC = IM_COL32( 0, 255, 0, 100);
         HighlightColor = IM_COL32(255, 255, 255, 50);
         ReadFn = NULL;
         WriteFn = NULL;
@@ -132,6 +135,7 @@ struct MemoryEditor
         memset(AddrInputBuf, 0, sizeof(AddrInputBuf));
         GotoAddr = (size_t)-1;
         HighlightMin = HighlightMax = (size_t)-1;
+        HighlightPCMin = HighlightPCMax = (size_t)-1;
         PreviewEndianess = 0;
         PreviewDataType = ImGuiDataType_S32;
     }
@@ -141,6 +145,19 @@ struct MemoryEditor
         GotoAddr = addr_min;
         HighlightMin = addr_min;
         HighlightMax = addr_max;
+    }
+
+    void Highlight(size_t addr_min, size_t addr_max)
+    {
+        HighlightMin = addr_min;
+        HighlightMax = addr_max;
+    }
+
+
+    void HighlightPC(size_t addr_min, size_t addr_max)
+    {
+        HighlightPCMin = addr_min;
+        HighlightPCMax = addr_max;
     }
 
     struct Sizes
@@ -284,6 +301,7 @@ struct MemoryEditor
 
                     // Draw highlight
                     bool is_highlight_from_user_range = (addr >= HighlightMin && addr < HighlightMax);
+                    bool is_highlight_from_pc = (addr >= HighlightPCMin && addr < HighlightPCMax);
                     bool is_highlight_from_user_func = (HighlightFn && HighlightFn(mem_data, addr));
                     bool is_highlight_from_preview = (addr >= DataPreviewAddr && addr < DataPreviewAddr + preview_data_type_size);
                     if (is_highlight_from_user_range || is_highlight_from_user_func || is_highlight_from_preview)
@@ -298,6 +316,20 @@ struct MemoryEditor
                                 highlight_width += s.SpacingBetweenMidCols;
                         }
                         draw_list->AddRectFilled(pos, ImVec2(pos.x + highlight_width, pos.y + s.LineHeight), HighlightColor);
+                    }
+
+                    if (is_highlight_from_pc)
+                    {
+                        ImVec2 pos = ImGui::GetCursorScreenPos();
+                        float highlight_width = s.GlyphWidth * 2;
+                        bool is_next_byte_highlighted = (addr + 1 < mem_size) && ((HighlightMax != (size_t)-1 && addr + 1 < HighlightMax) || (HighlightFn && HighlightFn(mem_data, addr + 1)));
+                        if (is_next_byte_highlighted || (n + 1 == Cols))
+                        {
+                            highlight_width = s.HexCellWidth;
+                            if (OptMidColsCount > 0 && n > 0 && (n + 1) < Cols && ((n + 1) % OptMidColsCount) == 0)
+                                highlight_width += s.SpacingBetweenMidCols;
+                        }
+                        draw_list->AddRectFilled(pos, ImVec2(pos.x + highlight_width, pos.y + s.LineHeight), HighlightColorPC);
                     }
 
                     if (DataEditingAddr == addr)
