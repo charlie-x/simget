@@ -128,47 +128,39 @@ void HexEditorRAM( avr_t * avr){
 }
 
 
-void ModifyAvrIoRegister(avr_ioport_t*port) {
-
-    if (!port) return;
-    
-    char cname[2] = {0,0,};
-    cname[0]=port->name;
-
-/////////// PORTS
+void displayIO(char *io_type, uint8_t addr , char *cname)
 {
+
     // Display register name, address, and current value
-    ImGui::Text("PORT%s (0x%02X) - Value: 0x%02X",cname , 0x0 , avr->data[port->r_port]);
+    ImGui::Text("%s%s (0x%02X) - Value: 0x%02X",io_type, cname , addr, avr->data[addr]);
 
     // Calculate spacing based on window width
     float windowWidth = ImGui::GetWindowWidth();
     float spacing = windowWidth / 9; // 8 bits + label
 
     // Display the bit numbers
-    ImGui::SetCursorPosX( 28 + spacing); // Initial spacing for alignment
+    ImGui::SetCursorPosX( spacing); // Initial spacing for alignment
     for (int i = 7; i >= 0; --i) {
         ImGui::Text("%d", i);
         if (i > 0) {
             ImGui::SameLine();
-            ImGui::SetCursorPosX( 28 + ( spacing * (8 - i + 1 ))); 
+            ImGui::SetCursorPosX( ( spacing * (8 - i + 1 ))); 
         }
     }
 
+    std::string name ;
     // Display the checkboxes for each bit
-    ImGui::Text("Value");
-    ImGui::SameLine();
     for (int i = 7; i >= 0; --i) {
-        ImGui::SetCursorPosX( (spacing * (8 - i + 0.5f))); // Adjust for checkbox size
-        bool bitSet = avr->data[port->r_port] & (1 << i);
-        std::string name ;
+        ImGui::SetCursorPosX( (spacing * (8 - i))); // Adjust for checkbox size
+        bool bitSet = avr->data[addr] & (1 << i);
         name = std::string("##") + cname+ std::to_string(i) ;
 
         if (ImGui::Checkbox(name.c_str(), &bitSet)) {
             // Toggle the bit if the checkbox is clicked
             if (bitSet) {
-                avr->data[port->r_port] |= (1 << i);
+                avr->data[addr] |= (1 << i);
             } else {
-                avr->data[port->r_port] &= ~(1 << i);
+                avr->data[addr] &= ~(1 << i);
             }
         }
         if (i > 0) {
@@ -176,93 +168,17 @@ void ModifyAvrIoRegister(avr_ioport_t*port) {
         }
     }
 }
-/////////// PINS
-    {
-        // Display register name, address, and current value
-        ImGui::Text("PIN%s (0x%02X) - Value: 0x%02X",cname , 0x0 , avr->data[port->r_pin]);
 
-        // Calculate spacing based on window width
-        float windowWidth = ImGui::GetWindowWidth();
-        float spacing = windowWidth / 9; // 8 bits + label
+void ModifyAvrIoRegister(avr_ioport_t*port) 
+{
+    if (!port) return;
+    
+    char cname[2] = {0,0,};
+    cname[0]=port->name;
 
-        // Display the bit numbers
-        ImGui::SetCursorPosX( 28 + spacing); // Initial spacing for alignment
-        for (int i = 7; i >= 0; --i) {
-            ImGui::Text("%d", i);
-            if (i > 0) {
-                ImGui::SameLine();
-                ImGui::SetCursorPosX( 28 + ( spacing * (8 - i + 1 ))); 
-            }
-        }
-
-        // Display the checkboxes for each bit
-        ImGui::Text("Value");
-        ImGui::SameLine();
-        for (int i = 7; i >= 0; --i) {
-            ImGui::SetCursorPosX( (spacing * (8 - i + 0.5f))); // Adjust for checkbox size
-            bool bitSet = avr->data[port->r_pin] & (1 << i);
-            std::string name ;
-            name = std::string("##") + cname+ std::to_string(i) ;
-
-            if (ImGui::Checkbox(name.c_str(), &bitSet)) {
-                // Toggle the bit if the checkbox is clicked
-                if (bitSet) {
-                     avr->data[port->r_pin] |= (1 << i);
-                } else {
-                     avr->data[port->r_pin] &= ~(1 << i);
-                }
-            }
-            if (i > 0) {
-                ImGui::SameLine();
-            }
-        }
-    }
-
-
-
-/////////// DDR
-    {
-        // Display register name, address, and current value
-        ImGui::Text("DDR%s (0x%02X) - Value: 0x%02X",cname , 0x0 ,  avr->data[port->r_ddr]);
-
-        // Calculate spacing based on window width
-        float windowWidth = ImGui::GetWindowWidth();
-        float spacing = windowWidth / 9; // 8 bits + label
-
-        // Display the bit numbers
-        ImGui::SetCursorPosX( 28 + spacing); // Initial spacing for alignment
-        for (int i = 7; i >= 0; --i) {
-            ImGui::Text("%d", i);
-            if (i > 0) {
-                ImGui::SameLine();
-                ImGui::SetCursorPosX( 28 + ( spacing * (8 - i + 1 ))); 
-            }
-        }
-
-        // Display the checkboxes for each bit
-        ImGui::Text("Value");
-        ImGui::SameLine();
-        for (int i = 7; i >= 0; --i) {
-            ImGui::SetCursorPosX( (spacing * (8 - i + 0.5f))); // Adjust for checkbox size
-            bool bitSet =  avr->data[port->r_ddr]& (1 << i);
-            std::string name ;
-            name = std::string("##") + cname+ std::to_string(i) ;
-
-            if (ImGui::Checkbox(name.c_str(), &bitSet)) {
-                // Toggle the bit if the checkbox is clicked
-                if (bitSet) {
-                     avr->data[port->r_ddr] |= (1 << i);
-                } else {
-                     avr->data[port->r_ddr] &= ~(1 << i);
-                }
-            }
-            if (i > 0) {
-                ImGui::SameLine();
-            }
-        }
-    }
-
-
+    displayIO("PORT", port->r_port, cname);
+    displayIO("DDR", port->r_ddr, cname);
+    displayIO("PIN", port->r_pin, cname);
 }
 
 
@@ -366,8 +282,10 @@ bool  ShowAvrDetails(avr_t* avr)
         if(animate ) {
             static uint16_t count = 0;
             count ++;
-            if (count == 1000 ) {
-                run = 1- run;
+            if (count == 10 ) {
+ 
+               state = avr_run(avr);
+  
                 count = 0;
             }
         }
