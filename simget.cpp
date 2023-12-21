@@ -933,6 +933,8 @@ void Disasm(char *Bitstream, int Pos, int Read)
     {
 		int Added;
 
+
+
 		/* Check if this is actually code or maybe only data from tagfile */
 		Added = Tagfile_Process_Data(Bitstream, Pos);
 		if (Added != 0) {
@@ -940,7 +942,10 @@ void Disasm(char *Bitstream, int Pos, int Read)
 			Pos += Added;
 			return;
 		}
-		
+		if( j == 0 ){
+		    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.0f, 1.0f));
+		}
+
 		Opcode = Get_Next_Opcode(Bitstream + Pos);
 		if (Opcode != -1) {
 			Code_Line[0] = 0;
@@ -1005,6 +1010,9 @@ void Disasm(char *Bitstream, int Pos, int Read)
             ImGui::Text(".word 0x%02x%02x    ; Invalid opcode at 0x%04x (%d). Disassembler skipped two bytes.",
                         Bitstream[Pos + 1], Bitstream[Pos], Pos, Pos);
 			Pos += 2;
+		}
+		if( j == 0 ){
+    		ImGui::PopStyleColor();
 		}
 	}
 }
