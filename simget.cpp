@@ -953,7 +953,7 @@ void Disasm(char *Bitstream, int Pos, int Read)
 			}
 				
 			if (Options.Show_Addresses) {
-                ImGui::Text("%4x:   ", Pos);
+                ImGui::Text("0x%04x:   ", Pos);
                 ImGui::SameLine();
             }
 
