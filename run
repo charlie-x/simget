@@ -8,5 +8,5 @@ cmake --build build -j 5
 make
 cd ..
 cmake --build build -j 5
-rem ./build/simget --mcu attiny4313 -f 1000000 --firmware ./elliePOV.hex
-./build/simget --mcu attiny4313 -f 1000000 --firmware simavr/tests/attiny4313_port.hex
+./build/simget --mcu attiny4313 -f 1000000 --firmware ./elliePOV.hex
+#./build/simget --mcu attiny4313 -f 1000000 --firmware simavr/tests/attiny4313_port.hex
