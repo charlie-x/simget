@@ -155,10 +155,12 @@ void HexEditorRAM( AvrSimulator& avrSim ) {
    mem_edit_1.DrawWindow("Memory Editor RAM", avr->data , avr->ramend);
 }
 
-void displayIO(AvrSimulator& avrSim, const char *io_type, uint8_t addr , char *cname)
+void displayIO(AvrSimulator& avrSim, const std::string &io_type, uint8_t addr , char *cname)
 {
+	avr_t *avr  = avrSim.avr;
+
    // display register name, address, and current value
-    ImGui::Text("%s%s (0x%02X) 0x%02X",io_type, cname , addr, avrSim.avr->data[addr]);
+    ImGui::Text("%s%s (0x%02X) 0x%02X",io_type.c_str(), cname , addr, avrSim.avr->data[addr]);
     //ImGui::SameLine();
 
     // calculate spacing based on window width
@@ -184,16 +186,32 @@ void displayIO(AvrSimulator& avrSim, const char *io_type, uint8_t addr , char *c
     for (int i = 7; i >= 0; --i) {
         ImGui::SetCursorPosX( (spacing * (8 - i))); // adjust for checkbox size
         bool bitSet = avrSim.avr->data[addr] & (1 << i);
-        name = std::string("##") + cname+ std::to_string(i) ;
+        name = std::string("##") + io_type + cname+ std::to_string(i) ;
 
         if (ImGui::Checkbox(name.c_str(), &bitSet)) {
 
-            // toggle the bit if the checkbox is clicked
-            if (bitSet) {
-                avrSim.avr->data[addr] |= (1 << i);
-            } else {
-                avrSim.avr->data[addr] &= ~(1 << i);
-            }
+			if( io_type == "PIN" ) {
+
+				avr_irq_t* irq = avr_io_getirq(avr, AVR_IOCTL_IOPORT_GETIRQ(cname[0]), i);
+
+				if(irq) {
+					if (bitSet) {
+
+						avr_raise_irq(irq, 1); // Simulate a high state on the pin
+
+					}else {
+
+						avr_raise_irq(irq, 0); // Simulate a low state on the pin
+					}
+				}	
+			} else{
+				// toggle the bit if the checkbox is clicked
+				if (bitSet) {
+					avrSim.avr->data[addr] |= (1 << i);
+				} else {
+					avrSim.avr->data[addr] &= ~(1 << i);
+				}
+				}
         }
         if (i > 0) {
             ImGui::SameLine();
