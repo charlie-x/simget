@@ -410,7 +410,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    GLFWwindow* window = glfwCreateWindow(1280, 1075, "SimAVR", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(900, 840, "SimAVR", NULL, NULL);
     if (!window) {
         std::cerr << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
