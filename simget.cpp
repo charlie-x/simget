@@ -190,12 +190,10 @@ void displayIO(AvrSimulator& avrSim, const std::string &io_type, uint8_t addr , 
 
         if (ImGui::Checkbox(name.c_str(), &bitSet)) {
 
-			std::cout << io_type << " " << cname << std::endl;
-
 			if( io_type == "PIN" ) {
 
 				avr_irq_t* irq = avr_io_getirq(avr, AVR_IOCTL_IOPORT_GETIRQ(cname[0]), i);
-				
+
 				if(irq) {
 					if (bitSet) {
 
