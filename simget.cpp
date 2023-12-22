@@ -351,6 +351,139 @@ bool  ShowAvrDetails(AvrSimulator &avr)
     return avr.run;
 }
 
+void drawCircle(GLfloat x, GLfloat y, GLfloat radius, const ImVec4 &color, int numSegments = 32) {
+    GLfloat twicePi = 2.0f * M_PI;
+
+    // Activate the OpenGL context
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Start drawing a triangle fan
+    glBegin(GL_TRIANGLE_FAN);
+
+    // Set the color for the circle
+    glColor4f(color.x, color.y, color.z, color.w);
+
+    // Center of the circle
+    glVertex2f(x, y);
+
+    for (int i = 0; i <= numSegments; i++) {
+        glVertex2f(
+            x + (radius * cos(i *  twicePi / numSegments)),
+            y + (radius * sin(i * twicePi / numSegments))
+        );
+    }
+
+    glEnd();
+}
+
+
+const int LED_COUNT = 12;
+const int OFFSET = 10; // Offset for the first LED from the center
+const double PI = 3.14159265358979323846;
+
+class FidgetSpinner {
+public:
+    FidgetSpinner();
+    void update();
+    void draw();
+    void calculateRPM();
+    void sineWaveEffect();
+
+private:
+    double angle; // Current angle of rotation in radians
+    std::vector<std::pair<float, float>> ledPositions;
+    std::vector<bool> ledStates; // LED states: true for on, false for off
+    std::chrono::steady_clock::time_point lastTDC;
+    double rpm;
+    int waveIndex;
+    void calculateLedPositions();
+    void updateLedStates();
+};
+
+FidgetSpinner::FidgetSpinner() : angle(0), rpm(0), waveIndex(0) {
+    ledStates.resize(LED_COUNT, false);
+    lastTDC = std::chrono::steady_clock::now();
+    calculateLedPositions();
+    updateLedStates();
+}
+
+void FidgetSpinner::update() {
+    angle += PI / 120;
+    if (angle >= 2 * PI) {
+        angle -= 2 * PI;
+        calculateRPM();
+    }
+    calculateLedPositions();
+    updateLedStates();
+    sineWaveEffect();
+}
+
+void FidgetSpinner::calculateLedPositions() {
+    ledPositions.clear();
+    for (int i = 0; i < LED_COUNT; ++i) {
+        float x = (i + OFFSET) * cos(angle);
+        float y = (i + OFFSET) * sin(angle);
+        ledPositions.emplace_back(x, y);
+    }
+}
+
+void FidgetSpinner::updateLedStates() {
+    static int currentLed = 0;
+    ledStates[currentLed] = true;
+    currentLed = (currentLed + 1) % LED_COUNT;
+    ledStates[currentLed] = false;
+}
+
+void FidgetSpinner::calculateRPM() {
+    auto now = std::chrono::steady_clock::now();
+    std::chrono::duration<double> timePassed = now - lastTDC;
+    if (timePassed.count() > 0) {
+        rpm = 60 / timePassed.count();
+        lastTDC = now;
+    }
+}
+
+void FidgetSpinner::sineWaveEffect() {
+    const int sineWaveSize = LED_COUNT * 2;
+    for (int i = 0; i < LED_COUNT; ++i) {
+        int index = (waveIndex + i) % sineWaveSize;
+        ledStates[i] = index < LED_COUNT;
+    }
+    waveIndex = (waveIndex + 1) % sineWaveSize;
+}
+
+void FidgetSpinner::draw() {
+    for (size_t i = 0; i < ledPositions.size(); ++i) {
+        float x = ledPositions[i].first * 20 + 400;
+        float y = ledPositions[i].second * 20 + 300;
+        bool ledOn = ledStates[i];
+        ImVec4 color = ledOn ? ImVec4(1.0f, 0.0f, 0.0f, 1.0f) : ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+        drawCircle(x, y, 5.0f, color);
+    }
+
+    ImGui::Text("RPM: %d", static_cast<int>(rpm));
+}
+
+FidgetSpinner spinner;
+
+void renderLEDsInImGuiWindow() {
+    // Start an ImGui window
+    ImGui::Begin("LED Control");
+	
+    // Get the window position and size for LED rendering
+    ImVec2 winPos = ImGui::GetWindowPos();
+    ImVec2 winSize = ImGui::GetWindowSize();
+
+    // Calculate the center position for the LEDs
+    ImVec2 center = ImVec2(winPos.x + winSize.x / 2, winPos.y + winSize.y / 2);
+
+    spinner.update();
+	spinner.draw();
+    
+	// End the ImGui window
+    ImGui::End();
+}
 
 
 int main(int argc, char** argv) {
@@ -492,6 +625,8 @@ int main(int argc, char** argv) {
         HexEditorRAM(avrSim);
 
         ModifyAvrIoRegisters(avrSim);
+
+		renderLEDsInImGuiWindow();
 
        // Rendering
         ImGui::Render();
