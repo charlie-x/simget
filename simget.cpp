@@ -4,7 +4,10 @@
 #include "imgui_internal.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
+
+#include "framebuffer.h"
 
 // comes from the imgui_club repo
 #include "imgui_memory_editor.h"
@@ -39,6 +42,12 @@ extern "C" {
 
 }
 
+
+// handy macros
+#define BIT_SET(port, bit) ((port) |= (1 << (bit)))
+#define BIT_CLEAR(port, bit) ((port) &= ~(1 << (bit)))
+#define BIT_TEST(port, bit) ((port) & (1 << (bit)))
+
 int setupAVRDisasm();
 void Disasm(char *Bitstream, int Pos, int Read);
 
@@ -61,6 +70,10 @@ static char Code_Line[256];
 static char Comment_Line[256];
 static char After_Code_Line[256];
 
+
+int  m_width, m_height;
+
+FrameBuffer * sceneBuffer;
 //
 
 // Function to list supported AVR cores
@@ -386,9 +399,15 @@ class FidgetSpinner {
 public:
     FidgetSpinner();
     void update();
-    void draw();
+    void draw(ImVec2 center, ImVec2 size);
     void calculateRPM();
     void sineWaveEffect();
+
+    void setAvr( avr_t *_avr) {
+        avr = _avr;
+    }
+
+    avr_t *avr;
 
 private:
     double angle; // Current angle of rotation in radians
@@ -413,10 +432,30 @@ void FidgetSpinner::update() {
     if (angle >= 2 * PI) {
         angle -= 2 * PI;
         calculateRPM();
+
+    {
+        std::cerr << "trigger\n";
+
+        avr_irq_t* irq = avr_io_getirq(avr, AVR_IOCTL_IOPORT_GETIRQ('D'), 3);
+
+        if(irq) {
+            static bool state = 0; 
+            state = 1 - state; 
+
+            if (state ) 
+                avr_raise_irq(irq, 1); // Simulate a low state on the pin
+            else 
+                avr_raise_irq(irq, 0); // Simulate a high state on the pin
+        }
     }
+
+    }
+
+    //std::cout << angle <<std::endl;
+
+
     calculateLedPositions();
     updateLedStates();
-    sineWaveEffect();
 }
 
 void FidgetSpinner::calculateLedPositions() {
@@ -429,10 +468,30 @@ void FidgetSpinner::calculateLedPositions() {
 }
 
 void FidgetSpinner::updateLedStates() {
-    static int currentLed = 0;
-    ledStates[currentLed] = true;
-    currentLed = (currentLed + 1) % LED_COUNT;
-    ledStates[currentLed] = false;
+
+    if(!avr)  {
+        std::cerr << "avr is null\n";
+        return;
+    }
+    
+    mcu_attiny4313_t *mcu = (mcu_attiny4313_t*)avr;
+
+#define PORTA avr->data[mcu->porta.r_port]
+#define PORTB avr->data[mcu->portb.r_port]
+#define PORTD avr->data[mcu->portd.r_port]
+
+    if (BIT_TEST(PORTD, 0)) ledStates[0] = true; else ledStates[0] = false;
+	if (BIT_TEST(PORTD, 1)) ledStates[1] = true; else ledStates[1] = false;
+	if (BIT_TEST(PORTD, 4)) ledStates[2] = true; else ledStates[2] = false;
+	if (BIT_TEST(PORTD, 5)) ledStates[3] = true; else ledStates[3] = false;
+	if (BIT_TEST(PORTD, 6)) ledStates[4] = true; else ledStates[4] = false;
+	if (BIT_TEST(PORTB, 0)) ledStates[5] = true; else ledStates[5] = false;
+	if (BIT_TEST(PORTB, 1)) ledStates[6] = true; else ledStates[6] = false;
+	if (BIT_TEST(PORTB, 2)) ledStates[7] = true; else ledStates[7] = false;
+	if (BIT_TEST(PORTB, 3)) ledStates[8] = true; else ledStates[8] = false;
+	if (BIT_TEST(PORTB, 4)) ledStates[9] = true; else ledStates[9] = false;
+	if (BIT_TEST(PORTA, 0)) ledStates[10] = true; else ledStates[10] = false;
+	if (BIT_TEST(PORTA, 1))ledStates[11] = true; else ledStates[11] = false;;
 }
 
 void FidgetSpinner::calculateRPM() {
@@ -452,11 +511,12 @@ void FidgetSpinner::sineWaveEffect() {
     }
     waveIndex = (waveIndex + 1) % sineWaveSize;
 }
-
-void FidgetSpinner::draw() {
+void FidgetSpinner::draw(ImVec2 center,ImVec2 size) {
+    
     for (size_t i = 0; i < ledPositions.size(); ++i) {
-        float x = ledPositions[i].first * 20 + 400;
-        float y = ledPositions[i].second * 20 + 300;
+
+        float x = ledPositions[i].first * 20 + center.x;
+        float y = ledPositions[i].second * 20 + center.y;
         bool ledOn = ledStates[i];
         ImVec4 color = ledOn ? ImVec4(1.0f, 0.0f, 0.0f, 1.0f) : ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
         drawCircle(x, y, 5.0f, color);
@@ -469,20 +529,62 @@ FidgetSpinner spinner;
 
 void renderLEDsInImGuiWindow() {
     // Start an ImGui window
+    sceneBuffer->Bind();
+
     ImGui::Begin("LED Control");
-	
-    // Get the window position and size for LED rendering
-    ImVec2 winPos = ImGui::GetWindowPos();
-    ImVec2 winSize = ImGui::GetWindowSize();
 
-    // Calculate the center position for the LEDs
-    ImVec2 center = ImVec2(winPos.x + winSize.x / 2, winPos.y + winSize.y / 2);
+    ImGui::BeginChild("GameRender");
+    {
+        // Get the size of the ImGui child window
+        ImVec2 size = ImGui::GetContentRegionAvail();
 
-    spinner.update();
-	spinner.draw();
-    
-	// End the ImGui window
+        // Calculate the center position for the LEDs
+        ImVec2 center = ImVec2(size.x / 2, size.y / 2);
+
+        // Set up a viewport and projection matrix for OpenGL rendering
+        glViewport(0, 0, size.x, size.y);
+        glMatrixMode(GL_PROJECTION);
+        glPushMatrix();
+        glLoadIdentity();
+        glOrtho(0.0f, size.x, size.y, 0.0f, -1.0f, 1.0f);
+        glMatrixMode(GL_MODELVIEW);
+        glPushMatrix();
+        glLoadIdentity();
+        //glClearColor(0, 0.0, 0.2, 1.00f);
+        //glClear(GL_COLOR_BUFFER_BIT);
+
+        // Disable depth testing and face culling
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_CULL_FACE);
+
+        spinner.update();
+        spinner.draw(center, size); // Pass the center and size to the draw method
+
+        // Restore the OpenGL state
+        glPopMatrix();
+        glMatrixMode(GL_PROJECTION);
+        glPopMatrix();
+        glMatrixMode(GL_MODELVIEW);
+
+        ImGui::Image(
+            (ImTextureID)sceneBuffer->getFrameTexture(), 
+            size, // Use the size of the child window
+            ImVec2(0, 1), 
+            ImVec2(1, 0)
+        );
+    }
+    ImGui::EndChild();
+
+    // End the ImGui window
     ImGui::End();
+    sceneBuffer->Unbind();
+}
+
+void window_size_callback_static(GLFWwindow* window, int width, int height)
+{
+	glViewport(0, 0, width, height);
+    if(sceneBuffer)
+	    sceneBuffer->RescaleFrameBuffer(width, height);
 }
 
 
@@ -560,7 +662,7 @@ int main(int argc, char** argv) {
         std::cerr << "Failed to initialize GLFW" << std::endl;
         return 1;
     }
-
+    
     GLFWwindow* window = glfwCreateWindow(900, 840, "SimAVR", NULL, NULL);
     if (!window) {
         std::cerr << "Failed to create GLFW window" << std::endl;
@@ -570,14 +672,27 @@ int main(int argc, char** argv) {
 
     glfwMakeContextCurrent(window);
 
+    // glad: load all OpenGL function pointers
+    // ---------------------------------------
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    {
+        std::cerr << "Failed to initialize GLAD" << std::endl;
+        return -1;
+    }    
+
     // setup ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
 
     // setup ImGui + GLFW binding
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init("#version 120");
+    if ( ImGui_ImplGlfw_InitForOpenGL(window, true) ==false ){
+        std::cerr <<"ImGui_ImplGlfw_InitForOpenGL failed\n";   
+    }
+
+    if(ImGui_ImplOpenGL3_Init("#version 120") == false ){
+        std::cerr <<"ImGui_ImplOpenGL3_Init failed\n";   
+    }
 
     printf("OpenGL version supported by this platform (%s): \n", glGetString(GL_VERSION));
 
@@ -591,6 +706,7 @@ int main(int argc, char** argv) {
     signal(SIGTERM, sig_int);
 
 
+    
     // Start a new thread and use a lambda to call the run() method on the Avr instance
     std::thread avrThread([&avrSim]() {
         while(1) {
@@ -602,6 +718,16 @@ int main(int argc, char** argv) {
         }
     });
 
+
+    glfwGetFramebufferSize(window, &m_width, &m_height);
+    sceneBuffer = new FrameBuffer (m_width, m_height);
+    if( sceneBuffer == nullptr ) {
+        std::cerr << "failed to create scene buffer\n";
+    }
+
+    glfwSetWindowSizeCallback(window, window_size_callback_static);
+
+    spinner.setAvr( avrSim.avr);
     // Main loop
     while (!glfwWindowShouldClose(window)) {
 
@@ -611,8 +737,6 @@ int main(int argc, char** argv) {
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-
-
 
         bool run =  ShowAvrDetails(avrSim);
 

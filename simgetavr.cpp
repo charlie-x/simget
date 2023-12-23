@@ -19,7 +19,9 @@ AvrSimulator::AvrSimulator()
 
 void AvrSimulator::Cleanup()
 {
-    avr_terminate(avr);
+    if(avr) {
+        avr_terminate(avr);
+    }
 }
 
 bool AvrSimulator::Initialize(const std::string& mcu_type, const std::string& firmware_file, uint32_t frequency, int gdb_port)

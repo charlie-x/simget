@@ -40,6 +40,8 @@ find_package(glfw3 CONFIG REQUIRED)
 find_package(argparse CONFIG REQUIRED)
 find_package(OpenGL REQUIRED)
 #find_package(LibElf REQUIRED)
+# Find the GLAD package
+find_package(glad CONFIG REQUIRED)
 
 # have to change this to match how simavr builds
 link_directories(simavr/simavr/build)
@@ -49,7 +51,7 @@ link_directories(avrdisas/build)
 link_directories(/System/Volumes/Data/opt/homebrew/lib/)
 
 # Add your source files here
-add_executable(simget simget.cpp simgetavr.cpp)
+add_executable(simget simget.cpp simgetavr.cpp framebuffer.cpp)
 
 # Include directories for simavr
 include_directories(simavr/)
@@ -62,6 +64,8 @@ include_directories(avrdisas/includes)
 # Link libraries
 target_link_libraries(simget PRIVATE imgui::imgui glfw)
 target_link_libraries(simget PRIVATE OpenGL::GL)
+# Link GLAD
+target_link_libraries(${PROJECT_NAME} PRIVATE glad::glad)
 
 target_link_libraries(simget PRIVATE libsimavr.a) 
 target_link_libraries(simget PRIVATE libelf.a) 
