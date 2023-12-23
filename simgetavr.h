@@ -34,7 +34,7 @@ public:
     bool run = false;
     bool step = false;
     
-    uint32_t animateDelay = 100;
+    uint32_t animateDelay = 1;
 private:
     std::string mcu_type;       // type of AVR microcontroller to simulate
     std::string firmware_file;  // path to the firmware file

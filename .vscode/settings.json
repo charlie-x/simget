@@ -71,6 +71,12 @@
         "typeinfo": "cpp",
         "unordered_map": "cpp",
         "algorithm": "cpp",
-        "chrono": "cpp"
+        "chrono": "cpp",
+        "utility": "cpp",
+        "deque": "cpp",
+        "iterator": "cpp",
+        "queue": "cpp",
+        "random": "cpp",
+        "stack": "cpp"
     }
 }

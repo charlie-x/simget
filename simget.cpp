@@ -385,35 +385,42 @@ bool ShowAvrDetails(AvrSimulator &avr)
     return avr.run;
 }
 
-void drawCircle(GLfloat x, GLfloat y, GLfloat radius, const ImVec4 &color, int numSegments = 32)
+/**
+ * @brief Draw a line between two points with a given color.
+ *
+ * @param x1 The x-coordinate of the start point.
+ * @param y1 The y-coordinate of the start point.
+ * @param x2 The x-coordinate of the end point.
+ * @param y2 The y-coordinate of the end point.
+ * @param color The color of the line (ImVec4: red, green, blue, alpha).
+ */
+void drawLine(float x1, float y1, float x2, float y2, ImVec4 color)
 {
-    GLfloat twicePi = 2.0f * M_PI;
+    ImVec2 p1 = ImGui::GetCursorScreenPos();
 
-    // Activate the OpenGL context
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    ImGui::GetWindowDrawList()->AddLine(
+        ImVec2(p1.x+x1,p1.y+y1), 
+        ImVec2(p1.x+x2,p1.y+y2), 
+        IM_COL32(255, 0, 0, 255), 1.0f
+    );
 
-    // Start drawing a triangle fan
-    glBegin(GL_TRIANGLE_FAN);
+    glColor4f(color.x, color.y, color.z, color.w); // Set the color using the ImVec4 values
+    glBegin(GL_LINES);                             // Begin drawing lines
+        glVertex2f(x1, y1);                        // Define the start point
+        glVertex2f(x2, y2);                        // Define the end point
+    glEnd();                                       // End drawing lines
+}
 
-    // Set the color for the circle
-    glColor4f(color.x, color.y, color.z, color.w);
-
-    // Center of the circle
-    glVertex2f(x, y);
-
-    for (int i = 0; i <= numSegments; i++)
-    {
-        glVertex2f(
-            x + (radius * cos(i * twicePi / numSegments)),
-            y + (radius * sin(i * twicePi / numSegments)));
-    }
-
-    glEnd();
+void drawCircle(GLfloat x, GLfloat y, GLfloat radius, bool on, int numSegments = 32)
+{
+    if(on)
+        ImGui::GetWindowDrawList()->AddCircleFilled(ImVec2(x,y), radius, IM_COL32(255, 0, 0, 255), 20);
+    else
+        ImGui::GetWindowDrawList()->AddCircle(ImVec2(x,y), radius, IM_COL32(128, 0, 0, 255), 20, 1);    
 }
 
 const int LED_COUNT = 12;
-const int OFFSET = 10; // Offset for the first LED from the center
+const int OFFSET = 3; // Offset for the first LED from the center
 const double PI = 3.14159265358979323846;
 
 class FidgetSpinner
@@ -453,14 +460,14 @@ FidgetSpinner::FidgetSpinner() : angle(0), rpm(0), waveIndex(0)
 
 void FidgetSpinner::update()
 {
-    angle += PI / 120;
+    angle += PI / 60;
     if (angle >= 2 * PI)
     {
         angle -= 2 * PI;
         calculateRPM();
 
         {
-            std::cerr << "trigger\n";
+            //std::cerr << "trigger\n";
 
             avr_irq_t *irq = avr_io_getirq(avr, AVR_IOCTL_IOPORT_GETIRQ('D'), 3);
 
@@ -583,15 +590,21 @@ void FidgetSpinner::sineWaveEffect()
 }
 void FidgetSpinner::draw(ImVec2 center, ImVec2 size)
 {
+    ImVec4  db = ImVec4(0.0f, 0.0f, 1.0f, 1.0f) ;
+
+    // Debug: Draw a cross at the center of the viewport
+    drawLine(center.x - 10, center.y, center.x + 10, center.y, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+    drawLine(center.x, center.y - 10, center.x, center.y + 10, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+
+    drawCircle( center.x,center.y,3.0f,1 );
 
     for (size_t i = 0; i < ledPositions.size(); ++i)
     {
 
-        float x = ledPositions[i].first * 20 + center.x;
-        float y = ledPositions[i].second * 20 + center.y;
-        bool ledOn = ledStates[i];
-        ImVec4 color = ledOn ? ImVec4(1.0f, 0.0f, 0.0f, 1.0f) : ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
-        drawCircle(x, y, 5.0f, color);
+        float x = (ledPositions[i].first  * 6) + center.x;
+        float y = (ledPositions[i].second * 6) + center.y;
+
+        drawCircle(x, y, 4.0f, ledStates[i]);
     }
 
     ImGui::Text("RPM: %d", static_cast<int>(rpm));
@@ -601,55 +614,26 @@ FidgetSpinner spinner;
 
 void renderLEDsInImGuiWindow()
 {
-    // Start an ImGui window
-    sceneBuffer->Bind();
+    ImGui::SetNextWindowContentSize(ImVec2(200,200));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0,0));
 
-    ImGui::Begin("LED Control");
+    ImGui::Begin("LED Control", NULL, ImGuiWindowFlags_AlwaysAutoResize);
 
-    ImGui::BeginChild("GameRender");
-    {
-        // Get the size of the ImGui child window
-        ImVec2 size = ImGui::GetContentRegionAvail();
+    // Get the size of the ImGui child window
+    ImVec2 size = ImGui::GetContentRegionAvail();
+    ImVec2 p1 = ImGui::GetCursorScreenPos();
+    // Calculate the center position for the LEDs
+    ImVec2 center = ImVec2(size.x / 2, size.y / 2);
+    center.x += p1.x;
+    center.y += p1.y;
 
-        // Calculate the center position for the LEDs
-        ImVec2 center = ImVec2(size.x / 2, size.y / 2);
+    spinner.update();
+    spinner.draw(center, size); // Pass the center and size to the draw method
 
-        // Set up a viewport and projection matrix for OpenGL rendering
-        glViewport(0, 0, size.x, size.y);
-        glMatrixMode(GL_PROJECTION);
-        glPushMatrix();
-        glLoadIdentity();
-        glOrtho(0.0f, size.x, size.y, 0.0f, -1.0f, 1.0f);
-        glMatrixMode(GL_MODELVIEW);
-        glPushMatrix();
-        glLoadIdentity();
-        // glClearColor(0, 0.0, 0.2, 1.00f);
-        // glClear(GL_COLOR_BUFFER_BIT);
-
-        // Disable depth testing and face culling
-        glDisable(GL_DEPTH_TEST);
-        glDisable(GL_CULL_FACE);
-
-        spinner.update();
-        spinner.draw(center, size); // Pass the center and size to the draw method
-
-        // Restore the OpenGL state
-        glPopMatrix();
-        glMatrixMode(GL_PROJECTION);
-        glPopMatrix();
-        glMatrixMode(GL_MODELVIEW);
-
-        ImGui::Image(
-            (ImTextureID)sceneBuffer->getFrameTexture(),
-            size, // Use the size of the child window
-            ImVec2(0, 1),
-            ImVec2(1, 0));
-    }
-    ImGui::EndChild();
-
-    // End the ImGui window
     ImGui::End();
-    sceneBuffer->Unbind();
+    ImGui::PopStyleVar();
+
+
 }
 
 void window_size_callback_static(GLFWwindow *window, int width, int height)
