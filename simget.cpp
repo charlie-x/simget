@@ -460,7 +460,7 @@ FidgetSpinner::FidgetSpinner() : angle(0), rpm(0), waveIndex(0)
 
 void FidgetSpinner::update()
 {
-    angle += PI / 60;
+    angle += PI / 100;
     if (angle >= 2 * PI)
     {
         angle -= 2 * PI;
