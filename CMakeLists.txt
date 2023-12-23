@@ -12,7 +12,7 @@ endif()
 
 if(APPLE)
 message("APPLE Build")
-set(CMAKE_C_FLAGS "-funsigned-char")
+set(CMAKE_C_FLAGS " -funsigned-char")
 set(CMAKE_C_FLAGS_RELEASE "-mtune=generic -O2 -Wall -pedantic -mstackrealign -flto -fomit-frame-pointer -DNDEBUG -Wno-unknown-pragmas -fexceptions -fstack-clash-protection")
 set(CMAKE_CXX_FLAGS_RELEASE "-mtune=generic -O2 -Wall -pedantic -mstackrealign -flto -fomit-frame-pointer -DNDEBUG -Wno-unknown-pragmas -fexceptions -fstack-clash-protection")
 
@@ -28,9 +28,9 @@ set(CMAKE_CXX_FLAGS "-funsigned-char -static-libgcc -static-libstdc++")
 
 endif()
 
-set(CMAKE_C_FLAGS_DEBUG "-O0 -ggdb -fasynchronous-unwind-tables")
+set(CMAKE_C_FLAGS_DEBUG "-fsanitize=address -O0 -ggdb -fasynchronous-unwind-tables")
 
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb -fasynchronous-unwind-tables")
+set(CMAKE_CXX_FLAGS_DEBUG "-fsanitize=address -O0 -ggdb -fasynchronous-unwind-tables")
 
 message(CMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE}")
 
@@ -63,7 +63,15 @@ include_directories(avrdisas/includes)
 
 # Link libraries
 target_link_libraries(simget PRIVATE imgui::imgui glfw)
-target_link_libraries(simget PRIVATE OpenGL::GL)
+
+# Link against the OpenGL framework on macOS
+if(APPLE)
+  target_link_libraries(${PROJECT_NAME} PRIVATE "-framework OpenGL")
+  target_compile_definitions(${PROJECT_NAME} PRIVATE GL_SILENCE_DEPRECATION) # Silence deprecation warnings
+else()
+  target_link_libraries(simget PRIVATE OpenGL::GL)
+endif()
+
 # Link GLAD
 target_link_libraries(${PROJECT_NAME} PRIVATE glad::glad)
 
