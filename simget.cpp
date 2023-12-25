@@ -460,6 +460,7 @@ FidgetSpinner::FidgetSpinner() : angle(0), rpm(0), waveIndex(0)
 
 void FidgetSpinner::update()
 {
+    
     angle += PI / 100;
     if (angle >= 2 * PI)
     {
@@ -469,17 +470,19 @@ void FidgetSpinner::update()
         {
             //std::cerr << "trigger\n";
 
-            avr_irq_t *irq = avr_io_getirq(avr, AVR_IOCTL_IOPORT_GETIRQ('D'), 3);
+            if(avr) {
+                avr_irq_t *irq = avr_io_getirq(avr, AVR_IOCTL_IOPORT_GETIRQ('D'), 3);
 
-            if (irq)
-            {
-                static bool state = 0;
-                state = 1 - state;
+                if (irq)
+                {
+                    static bool state = 0;
+                    state = 1 - state;
 
-                if (state)
-                    avr_raise_irq(irq, 1); // Simulate a low state on the pin
-                else
-                    avr_raise_irq(irq, 0); // Simulate a high state on the pin
+                    if (state)
+                        avr_raise_irq(irq, 1); // Simulate a low state on the pin
+                    else
+                        avr_raise_irq(irq, 0); // Simulate a high state on the pin
+                }
             }
         }
     }
@@ -504,10 +507,8 @@ void FidgetSpinner::calculateLedPositions()
 void FidgetSpinner::updateLedStates()
 {
 
-    if (!avr)
-    {
-        std::cerr << "avr is null\n";
-        return;
+    if (!avr) {
+       return;
     }
 
     mcu_attiny4313_t *mcu = (mcu_attiny4313_t *)avr;
@@ -617,7 +618,8 @@ void renderLEDsInImGuiWindow()
     ImGui::SetNextWindowContentSize(ImVec2(200,200));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0,0));
 
-    ImGui::Begin("LED Control", NULL, ImGuiWindowFlags_AlwaysAutoResize);
+
+    ImGui::Begin("LED Control", NULL, ImGuiWindowFlags_NoBackground|ImGuiWindowFlags_AlwaysAutoResize);
 
     // Get the size of the ImGui child window
     ImVec2 size = ImGui::GetContentRegionAvail();
@@ -820,8 +822,9 @@ int main(int argc, char **argv)
 
         glfwSetWindowSizeCallback(window, window_size_callback_static);
 
-        spinner.setAvr(avrSim.avr);
 #endif
+
+        spinner.setAvr(avrSim.avr);
 
         std::cout << "main loop\n";
         // Main loop
@@ -847,9 +850,7 @@ int main(int argc, char **argv)
 
             ModifyAvrIoRegisters(avrSim);
 
-#ifndef __APPLE__
             renderLEDsInImGuiWindow();
-#endif
 
             // Rendering
             ImGui::Render();

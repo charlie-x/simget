@@ -142,9 +142,10 @@ int AvrSimulator::RunAnimate()
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastCall);
     
     if ( elapsed.count() > animateDelay ) {
-        
-        state = avr_run(avr);
 
+		for( int i =0 ; i < 20 ;i ++ )
+	        state = avr_run(avr);
+      
         // update the time of the last call to the current time
         lastCall = std::chrono::steady_clock::now();
 
