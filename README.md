@@ -6,7 +6,7 @@ avr simulator toy
 # clone it with submodules
 
 
-# build it , after genereating the cmake's with build folders..
+# build it , after generating the cmake's with build folders..
 
 install cmake, vcpkg, and change the toolchain path if different
 
